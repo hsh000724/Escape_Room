@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>방탈출 게임</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: white;
+      font-family: sans-serif;
+      height: 100vh;
+      position: relative;
+    }
+    #main-ui, #lockout-message, #success-message, #fail-message, #admin-panel, #admin-login {
+      display: none;
+    }
+    #main-ui {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #timer {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    #admin-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+    .red {
+      color: red;
+    }
+    #question-image {
+      max-width: 90vw;
+      max-height: 60vh;
+      margin: 20px 0;
+    }
+    #success-message {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    #success-message h2 {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+    #success-message p {
+      font-size: 28px;
+    }
+    #admin-panel {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    #admin-panel button {
+      display: block;
+      width: 200px;
+      margin: 10px auto;
+      padding: 10px;
+      font-size: 16px;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #admin-panel button:nth-child(2) {
+      background-color: #3498db;
+    }
+    #admin-panel button:nth-child(3) {
+      background-color: #2ecc71;
+    }
+    #admin-panel button:nth-child(4) {
+      background-color: #e67e22;
+    }
+    #admin-panel button:nth-child(5) {
+      background-color: #95a5a6;
+    }
+    #admin-login {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    #admin-login input {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer"></div>
+  <div id="admin-button"><button onclick="showAdminLogin()">관리자 설정</button></div>
+
+  <div id="main-ui">
+    <h2 id="question-text">1번 문제의 정답을 입력하세요.</h2>
+    <img id="question-image" src="" alt="문제 이미지">
+    <div id="answer-box">
+      <input type="text" id="user-answer">
+      <button onclick="checkAnswer()">확인</button>
+      <button id="hint-button" onclick="showHint()">힌트보기</button>
+    </div>
+    <p id="hint-text" style="display:none; margin-top: 10px; color: #555;"></p>
+    <p id="hint-count" style="margin-top: 5px;">힌트 사용 횟수: 0회</p>    
+    <p id="attempt-info">남은 시도 횟수: 4</p>
+  </div>
+
+  <div id="lockout-message">
+    <h3>입력 가능 횟수를 모두 소진했습니다. 5분 후 다시 시도해주세요.</h3>
+    <p id="lockout-timer"></p>
+  </div>
+
+  <div id="success-message">
+    <h2>도박장의 탈출을 성공하였지만 <br>도박의 빚을 감당하지 못하고 <br>결국은 자신을 죽음으로 몰아 놓았습니다. <br>도박은 자신을 괴롭게 하고 외롭게 만듭니다. <br><br>-탈출에 성공한 팀은 모두 금고 앞으로 가서 <br>탈출이라고 외쳐 주세요-</h2>
+    <p id="completion-time"></p>
+  </div>
+
+  <div id="fail-message">
+    <h2>탈출 실패</h2>
+  </div>
+
+  <div id="admin-login">
+    <h3>관리자 비밀번호를 입력하세요.</h3>
+    <input type="password" id="admin-password-input">
+    <br>
+    <button onclick="checkAdminPassword()">확인</button>
+  </div>
+
+  <div id="admin-panel">
+    <h3>관리자 설정</h3>
+    <button onclick="startAnswerEdit()">정답수정</button>
+    <button onclick="startTimerSetting()">타이머설정</button>
+    <button onclick="startPasswordChange()">관리자 비밀번호 변경</button>
+    <button onclick="closeAdminPanel()">뒤로가기</button>
+    <div id="answer-edit"></div>
+    <div id="timer-setting"></div>
+    <div id="password-change"></div>
+  </div>
+
+  <script>
+    let answers = ["EHQKRRMAWL", "책상아래", "복도끝", "계단난간", "7575", "0531", "1003", "1336", "DWDWWSDW", "1301", "GATE", "나락의길도박"];
+    let hints = [
+	"문제 속 같은 문양에서  알파벳을 찾아라",
+	`&nbsp;1 2 3 4 5 6 7 8<br>계단에서떨어졌다`,
+	"&nbsp;1 2 3 4 5 6 7 8<br>계단에서떨어졌다",
+	"&nbsp;1 2 3 4 5 6 7 8<br>계단에서떨어졌다",
+	"지금까지 획득한 필름지를 활용해서 수식을 만들어라",
+	"달력, 각 달의 마지막 날은?",
+	"0의 갯수를 파악 후 글자를 잘 봐라",
+	"비슷한 패턴을 찾아 숫자를 찾아봐라",
+	"시설안내도에서 출구로 가는 길",
+	"카드 뒷면을 자세히 봐라",
+	"카드 앞면에 있는 그림과 같은 그림을 찾아 알파벳을 찾아라",
+	"유서의 글자를 세로로 봐라"
+];
+    let hintUsedCount = 0;
+    let currentQuestion = 0;
+    let attemptsLeft = 4;
+    let lockout = false;
+    let lockoutTimer = null;
+    let escapeTimer = null;
+    let timeLeft = 2700;
+    let adminPassword = "0000";
+    let gameStartTime = Date.now();
+
+    const imageUrls = [
+"https://lh3.googleusercontent.com/d/1LJKbtx5IydLD6PthdPO2ybhNFNQEjfJE",
+"https://lh3.googleusercontent.com/d/1LwPuVTZhmg_vG0Zmhd9JZUl6EqnDLuyh",
+"https://lh3.googleusercontent.com/d/14kt6lspa_WimkLGa07Wls0hp7H5lIgot",
+"https://lh3.googleusercontent.com/d/1oE749jMYdmURZxaPTokE1gGqT5k1mRbh",
+"https://lh3.googleusercontent.com/d/1IDInQqTqJ3DDs64A8WRNL_WsW6h1hYyT",
+"https://lh3.googleusercontent.com/d/15X2zcJ4slIbLdNGzEF6-aEOiDTTZbKYt",
+"https://lh3.googleusercontent.com/d/1yg4wWSF4uzET5s_9xor7s6GXLDtlqY7V",
+"https://lh3.googleusercontent.com/d/1RehGOS0Z6GQ1EbxBlBMEYPqNL9Q7VK8V",
+"https://lh3.googleusercontent.com/d/1LMFvUMgPm_AbWmjIVBFaS5TvYvqAToW4",
+"https://lh3.googleusercontent.com/d/1A2hSLzCvgpC5M7FdPiXXwDXIj2N54ukT",
+"https://lh3.googleusercontent.com/d/1db2oABlHC8YExYrPOngAvmESisHDfa1H",
+"https://lh3.googleusercontent.com/d/1gNZtXZJZHHXF0lNrVWk9S-K0ny8quDPr"
+    ];
+
+    function updateQuestion() {
+  document.getElementById("question-text").innerText = `${currentQuestion + 1}번 문제의 정답을 입력하세요.`;
+  // 11번 문제일 때 방향 설명 추가
+  if (currentQuestion === 8) {
+    document.getElementById("question-text").innerText += "\n(위쪽: W, 아래쪽: S, 오른쪽: D, 왼쪽: A)";
+  }
+
+  document.getElementById("user-answer").value = "";
+  document.getElementById("attempt-info").innerText = `남은 시도 횟수: ${attemptsLeft}`;
+
+  const imageEl = document.getElementById("question-image");
+  const url = imageUrls[currentQuestion];
+  if (url) {
+    imageEl.src = url;
+    imageEl.style.display = "block";
+  } else {
+    imageEl.style.display = "none";
+  }
+}
+
+function showHint() {
+  const hintText = hints[currentQuestion];
+  const hintEl = document.getElementById("hint-text");
+  hintEl.innerHTML = hintText;
+  hintEl.style.display = "block";
+  hintUsedCount++;
+  document.getElementById("hint-count").innerText = `힌트 사용 횟수: ${hintUsedCount}회`;
+
+  // 버튼 비활성화
+  document.getElementById("hint-button").disabled = true;
+}
+
+    function checkAnswer() {
+      if (lockout || timeLeft <= 0) return;
+      const input = document.getElementById("user-answer").value.trim();
+      if (input === answers[currentQuestion]) {
+        currentQuestion++;
+        document.getElementById("hint-text").innerText = "";
+        document.getElementById("hint-button").disabled = false;
+        if (currentQuestion === answers.length) {
+          clearInterval(escapeTimer);
+          document.getElementById("main-ui").style.display = "none";
+          document.getElementById("success-message").style.display = "block";
+          const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+          document.getElementById("completion-time").innerText = `걸린 시간: ${Math.floor(elapsed / 60)}분 ${elapsed % 60}초`;
+          document.getElementById("completion-time").innerText += `\n힌트 사용 횟수: ${hintUsedCount}회`;
+          return;
+        }
+        attemptsLeft = 4;
+        updateQuestion();
+      } else {
+        attemptsLeft--;
+        if (attemptsLeft <= 0) {
+          lockout = true;
+          let remaining = 60;
+          document.getElementById("main-ui").style.display = "none";
+          document.getElementById("lockout-message").style.display = "block";
+          const lockoutTimerEl = document.getElementById("lockout-timer");
+          lockoutTimerEl.innerText = `재입력까지 남은 시간: ${Math.floor(remaining / 60)}:${("0" + (remaining % 60)).slice(-2)}`;
+          lockoutTimer = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+              clearInterval(lockoutTimer);
+              lockout = false;
+              attemptsLeft = 4;
+              document.getElementById("lockout-message").style.display = "none";
+              document.getElementById("main-ui").style.display = "flex";
+              updateQuestion();
+            } else {
+              lockoutTimerEl.innerText = `재입력까지 남은 시간: ${Math.floor(remaining / 60)}:${("0" + (remaining % 60)).slice(-2)}`;
+            }
+          }, 1000);
+        } else {
+          updateQuestion();
+        }
+      }
+    }
+
+    function showAdminLogin() {
+      document.getElementById("admin-password-input").value = ""; // 초기화
+      document.getElementById("admin-login").style.display = "block";
+    }
+
+    function checkAdminPassword() {
+      const input = document.getElementById("admin-password-input").value;
+      if (input === adminPassword) {
+        document.getElementById("admin-login").style.display = "none";
+        document.getElementById("admin-panel").style.display = "block";
+      } else {
+        alert("비밀번호가 틀렸습니다.");
+      }
+    }
+
+    function closeAdminPanel() {
+      document.getElementById("admin-panel").style.display = "none";
+    }
+
+    function startAnswerEdit() {
+      const container = document.getElementById("answer-edit");
+      const q = prompt("몇 번 문제의 정답을 수정하시겠습니까? (1~12)");
+      const i = parseInt(q);
+      if (i >= 1 && i <= answers.length) {
+        const newAnswer = prompt(`${i}번 문제의 새 정답을 입력하세요:`);
+        if (newAnswer !== null) {
+          answers[i - 1] = newAnswer.trim();
+          alert(`${i}번 문제의 정답이 수정되었습니다.`);
+        }
+      } else {
+        alert("잘못된 번호입니다.");
+      }
+    }
+
+    function startTimerSetting() {
+      const minutes = prompt("새 제한시간을 입력하세요 (분 단위):");
+      const m = parseInt(minutes);
+      if (!isNaN(m) && m > 0) {
+        timeLeft = m * 60;
+        alert(`제한시간이 ${m}분으로 설정되었습니다.`);
+        updateTimer();
+      }
+    }
+
+    function startPasswordChange() {
+      const newPw = prompt("새 비밀번호를 입력하세요:");
+      if (newPw && newPw.trim()) {
+        adminPassword = newPw.trim();
+        alert("비밀번호가 변경되었습니다.");
+      }
+    }
+
+    function updateTimer() {
+      const timerEl = document.getElementById("timer");
+      if (escapeTimer) clearInterval(escapeTimer);
+      escapeTimer = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(escapeTimer);
+          document.getElementById("main-ui").style.display = "none";
+          document.getElementById("fail-message").style.display = "block";
+          return;
+        }
+        timeLeft--;
+        timerEl.innerHTML = `제한시간: ${Math.floor(timeLeft / 60)}:${("0" + timeLeft % 60).slice(-2)}`;
+        if (timeLeft <= 60) {
+          timerEl.classList.add("red");
+        } else {
+          timerEl.classList.remove("red");
+        }
+      }, 1000);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      updateQuestion();
+      updateTimer();
+      document.getElementById("main-ui").style.display = "flex";
+    });
+  </script>
+</body>
+</html>
